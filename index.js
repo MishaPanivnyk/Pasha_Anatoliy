@@ -3,10 +3,11 @@ const mongoose = require("mongoose");
 const multer = require("multer");
 const uuidv4 = require("uuid").v4;
 const fs = require("fs");
+const path = require("path");
 
 const app = express();
 
-const IMAGE_DIR = "./image_uploads";
+const IMAGE_DIR = "./image_uploads/images/";
 if (!fs.existsSync(IMAGE_DIR)) {
   fs.mkdirSync(IMAGE_DIR);
 }
@@ -54,18 +55,26 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
-// Обробник видалення зображення
+// Видалення зображення
 app.delete("/image/:id", async (req, res) => {
-  const image_id = req.params.id; // Отримуємо посилання на зображення з бази даних
+  const image_id = req.params.id;
+
   try {
-    const result = await Image.findById(image_id);
-    const image_url = result.url;
+    const image = await Image.findById(image_id);
+    const image_url = image.url;
 
-    // Видаляємо файл зображення з диску
-    const image_path = IMAGE_DIR + image_url;
-    fs.unlinkSync(image_path);
+    if (!image) {
+      res.status(404).send("Image not found");
+    }
 
-    // Видаляємо посилання на зображення з бази даних
+    const { dir, base } = path.parse(image_url);
+    const image_path = path.join(IMAGE_DIR, base);
+
+    if (fs.existsSync(image_path)) {
+      fs.unlinkSync(image_path);
+    }
+
+    // Delete image from database
     await Image.findByIdAndDelete(image_id);
 
     res.status(200).send("Image deleted successfully");
